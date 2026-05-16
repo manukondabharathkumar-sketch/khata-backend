@@ -10,23 +10,37 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import javax.annotation.PostConstruct;
+import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 
 @Configuration
 public class FirebaseConfig {
 
-    // Path to your Firebase service account JSON file
-    // Download from Firebase Console > Project Settings > Service Accounts
-    @Value("${firebase.service-account-path}")
+    @Value("${firebase.service-account-path:}")
     private String serviceAccountPath;
+
+    @Value("${FIREBASE_SERVICE_ACCOUNT_JSON:}")
+    private String serviceAccountJson;
 
     @PostConstruct
     public void initFirebase() throws IOException {
         if (FirebaseApp.getApps().isEmpty()) {
-            FileInputStream serviceAccount = new FileInputStream(serviceAccountPath);
+            InputStream credentialsStream;
+
+            if (serviceAccountJson != null && !serviceAccountJson.isEmpty()) {
+                // Production: read from environment variable
+                credentialsStream = new ByteArrayInputStream(
+                    serviceAccountJson.getBytes(StandardCharsets.UTF_8));
+            } else {
+                // Local development: read from file
+                credentialsStream = new FileInputStream(serviceAccountPath);
+            }
+
             FirebaseOptions options = FirebaseOptions.builder()
-                    .setCredentials(GoogleCredentials.fromStream(serviceAccount))
+                    .setCredentials(GoogleCredentials.fromStream(credentialsStream))
                     .build();
             FirebaseApp.initializeApp(options);
         }
